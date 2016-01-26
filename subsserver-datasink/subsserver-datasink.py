@@ -94,7 +94,7 @@ class DataSinkPostgres(object):
                             else:
                                 ts = None
                                 te = None
-                            dv.append(("{:f}".format(data["value"][i]), ts, te))
+                            dv.append((data["value"][i], ts, te))
                     else:
                         dv.append((data["value"], t_production_start, t_production_end))
 
