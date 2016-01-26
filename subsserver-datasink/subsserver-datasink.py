@@ -180,6 +180,7 @@ def main():
     parser.add_argument("--api-user", default="user")
     parser.add_argument("--api-pass", default="pass")
 
+    parser.add_argument("--http", action="store_true")
     parser.add_argument("--server-crt", default="server.crt")
     parser.add_argument("--server-key", default="server.key")
 
@@ -190,8 +191,11 @@ def main():
     if args.debug:
         logging.basicConfig(level=logging.DEBUG)
 
-    context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
-    context.load_cert_chain(args.server_crt, args.server_key)
+    if args.http:
+        context = None
+    else:
+        context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+        context.load_cert_chain(args.server_crt, args.server_key)
 
     datasink = DataSinkPostgres(args.db_host, args.db_port, args.db_user, args.db_pass)
 
