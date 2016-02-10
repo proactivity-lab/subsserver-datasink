@@ -65,8 +65,10 @@ class DataSinkPostgres(object):
                 else:
                     data_period = data["period"]
 
-                if t_production_end is None or data_period is None:
+                if t_production_end is None:
                     t_production_start = None
+                elif data_period is None:
+                    t_production_start = t_production_end
                 else:
                     t_production_start = t_production_end - data_period
 
