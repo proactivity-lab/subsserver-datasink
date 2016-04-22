@@ -1,0 +1,10 @@
+[subsdatasink]
+http = True
+db-host = localhost
+db-port = 5432
+db-user = databaseuser
+db-pass = databasepass
+
+api-port = 54320
+api-user = apiusername
+api-pass = apipassword
