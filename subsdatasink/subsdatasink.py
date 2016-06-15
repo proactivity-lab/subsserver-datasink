@@ -9,18 +9,21 @@ from flask.ext.restful import Api, Resource, reqparse
 from flask.ext.httpauth import HTTPBasicAuth
 
 import logging
+import logging.handlers
 log = logging.getLogger(__name__)
 
 
 __author__ = "Raido Pahtma"
 __license__ = "MIT"
 
+version = "0.1.1"
+
 
 class DataElement(object):
 
-    def __init__(self, source, type, value, arrival=0, ps=0, pe=0):
+    def __init__(self, source, data_type, value, arrival=0, ps=0, pe=0):
         self.source = source
-        self.type = type
+        self.type = data_type
         self.value = value
         self.arrival = arrival
         self.production_start = ps
@@ -248,6 +251,17 @@ def main():
 
     if args.debug:
         logging.basicConfig(level=logging.DEBUG)
+    else:
+        ch = logging.handlers.TimedRotatingFileHandler("mobagel_datasink.log", when="W6", backupCount=8)
+        ch.setLevel(logging.DEBUG)
+
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+        ch.setFormatter(formatter)
+
+        root_logger = logging.getLogger()
+        root_logger.setLevel(logging.DEBUG)
+        root_logger.addHandler(ch)
 
     if args.http:
         context = None

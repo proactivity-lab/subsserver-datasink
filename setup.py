@@ -6,10 +6,12 @@ The datasink will store received data in a postgresql database.
 from setuptools import setup
 from os.path import join as pjoin
 
+import subsdatasink
+
 doclines = __doc__.split("\n")
 
 setup(name='subsdatasink',
-      version='0.1.0',
+      version=subsdatasink.version,
       description='Datasink for subsserver simple data protocol.',
       long_description='\n'.join(doclines[2:]),
       url='http://github.com/proactivity-lab/subsserver-datasink',
