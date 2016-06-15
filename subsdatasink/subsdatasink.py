@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import os
 import copy
 import psycopg2
 
@@ -16,7 +17,7 @@ log = logging.getLogger(__name__)
 __author__ = "Raido Pahtma"
 __license__ = "MIT"
 
-version = "0.1.1"
+version = "0.2.0"
 
 
 class DataElement(object):
@@ -238,6 +239,8 @@ def main():
     parser.add_argument("--api-user", default="user")
     parser.add_argument("--api-pass", default="pass")
 
+    parser.add_argument("--logdir", default="/var/log/subsdatasink")
+
     parser.add_argument("--http", type=arg_str2bool, nargs="?", const=True, default=False)
     parser.add_argument("--server-crt", default="server.crt")
     parser.add_argument("--server-key", default="server.key")
@@ -252,7 +255,10 @@ def main():
     if args.debug:
         logging.basicConfig(level=logging.DEBUG)
     else:
-        ch = logging.handlers.TimedRotatingFileHandler("mobagel_datasink.log", when="W6", backupCount=8)
+        if not os.path.isdir(args.logdir):
+            os.makedirs(args.logdir)
+
+        ch = logging.handlers.TimedRotatingFileHandler(os.path.join(args.logdir, "subsdatasink.log"), when="W6", backupCount=8)
         ch.setLevel(logging.DEBUG)
 
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
