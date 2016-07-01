@@ -32,49 +32,52 @@ class DataElement(object):
 
 
 def process_data(data):
-    data = copy.deepcopy(data)
     elements = []
+    if data is not None:
+        data = copy.deepcopy(data)
 
-    if "source" in data and data["source"] is not None:
-        source = data["source"]
+        if "source" in data and data["source"] is not None:
+            source = data["source"]
 
-        if "type" not in data:
-            data["type"] = None
+            if "type" not in data:
+                data["type"] = None
 
-        if "timestamp_arrival" not in data:
-            data["timestamp_arrival"] = None
+            if "timestamp_arrival" not in data:
+                data["timestamp_arrival"] = None
 
-        if "values" in data:
-            values = data["values"]
-        else:  # Make the single value look like the array
-            values = [{}]
-            if "value" in data:
-                values[0]["value"] = data["value"]
-            if "timestamp_production" in data:
-                values[0]["timestamp_production"] = data["timestamp_production"]
-            if "duration_production" in data:
-                values[0]["duration_production"] = data["duration_production"]
+            if "values" in data:
+                values = data["values"]
+            else:  # Make the single value look like the array
+                values = [{}]
+                if "value" in data:
+                    values[0]["value"] = data["value"]
+                if "timestamp_production" in data:
+                    values[0]["timestamp_production"] = data["timestamp_production"]
+                if "duration_production" in data:
+                    values[0]["duration_production"] = data["duration_production"]
 
-        for item in values:
-            # apply default values for any optional elements
-            if "value" not in item:
-                item["value"] = None
-            if "timestamp_production" not in item:
-                item["timestamp_production"] = None
-            if "duration_production" not in item:
-                item["duration_production"] = None
+            for item in values:
+                # apply default values for any optional elements
+                if "value" not in item:
+                    item["value"] = None
+                if "timestamp_production" not in item:
+                    item["timestamp_production"] = None
+                if "duration_production" not in item:
+                    item["duration_production"] = None
 
-            production_start = item["timestamp_production"]
-            if production_start is not None and item["duration_production"] is not None:
-                production_end = production_start + item["duration_production"]
-            else:
-                production_end = production_start
+                production_start = item["timestamp_production"]
+                if production_start is not None and item["duration_production"] is not None:
+                    production_end = production_start + item["duration_production"]
+                else:
+                    production_end = production_start
 
-            elements.append(DataElement(source, data["type"], item["value"],
-                                        arrival=data["timestamp_arrival"],
-                                        ps=production_start, pe=production_end))
+                elements.append(DataElement(source, data["type"], item["value"],
+                                            arrival=data["timestamp_arrival"],
+                                            ps=production_start, pe=production_end))
+        else:
+            log.warning("no source in data")
     else:
-        log.warning("no source in data")
+        log.warning("data is None")
 
     return elements
 
@@ -183,7 +186,7 @@ class DataSinkFlask(Resource):
 
     @auth.login_required
     def post(self, database):
-        data = request.get_json()
+        data = request.get_json(silent=True, force=True)
 
         log.debug("received {}".format(data))
 
