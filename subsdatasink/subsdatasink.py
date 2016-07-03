@@ -17,7 +17,7 @@ log = logging.getLogger(__name__)
 __author__ = "Raido Pahtma"
 __license__ = "MIT"
 
-version = "0.2.0"
+version = "0.3.0"
 
 
 class DataElement(object):
@@ -29,57 +29,59 @@ class DataElement(object):
         self.arrival = arrival
         self.production_start = ps
         self.production_end = pe
+        self.data = []
 
 
-def process_data(data):
-    elements = []
+def process_data(parent, data):
     if data is not None:
         data = copy.deepcopy(data)
-
-        if "source" in data and data["source"] is not None:
-            source = data["source"]
-
-            if "type" not in data:
-                data["type"] = None
-
-            if "timestamp_arrival" not in data:
-                data["timestamp_arrival"] = None
-
-            if "values" in data:
-                values = data["values"]
-            else:  # Make the single value look like the array
-                values = [{}]
-                if "value" in data:
-                    values[0]["value"] = data["value"]
-                if "timestamp_production" in data:
-                    values[0]["timestamp_production"] = data["timestamp_production"]
-                if "duration_production" in data:
-                    values[0]["duration_production"] = data["duration_production"]
-
-            for item in values:
-                # apply default values for any optional elements
-                if "value" not in item:
-                    item["value"] = None
-                if "timestamp_production" not in item:
-                    item["timestamp_production"] = None
-                if "duration_production" not in item:
-                    item["duration_production"] = None
-
-                production_start = item["timestamp_production"]
-                if production_start is not None and item["duration_production"] is not None:
-                    production_end = production_start + item["duration_production"]
+        for item in data:
+            if "source" not in item:
+                if parent is not None:
+                    item["source"] = parent.source
                 else:
-                    production_end = production_start
+                    item["source"] = None
 
-                elements.append(DataElement(source, data["type"], item["value"],
-                                            arrival=data["timestamp_arrival"],
-                                            ps=production_start, pe=production_end))
+            if "type" not in item:
+                item["type"] = None
+
+            if "timestamp_arrival" not in item:
+                if parent is not None:
+                    item["timestamp_arrival"] = parent.arrival
+                else:
+                    item["timestamp_arrival"] = None
+
+            if "value" not in item:
+                item["value"] = None
+
+            if "timestamp_production" not in item:
+                item["timestamp_production"] = None
+
+            if "duration_production" not in item:
+                item["duration_production"] = 0
+
+            production_start = item["timestamp_production"]
+            if production_start is not None:
+                production_end = production_start + item["duration_production"]
+            else:
+                production_end = production_start
+
+            element = DataElement(item["source"], item["type"], item["value"], arrival=item["timestamp_arrival"],
+                                  ps=production_start, pe=production_end)
+
+            parent.data.append(element)
+
+            if "values" in item:
+                process_data(element, item["values"])
+
+            return element
+
         else:
             log.warning("no source in data")
     else:
         log.warning("data is None")
 
-    return elements
+    return None
 
 
 class DataSinkPostgres(object):
@@ -97,62 +99,66 @@ class DataSinkPostgres(object):
         else:
             return datetime.utcfromtimestamp(ts).strftime("'%Y-%m-%d %H:%M:%S.%f'")
 
+    def insert_data(self, cursor, parent, data):
+        if data.type is not None:
+            sql = "INSERT INTO data (parent, guid, arrival, production_start, production_end, type, value) VALUES ({:s}, '{:s}', {:s}, {:s}, {:s}, {:s}, {:s}) RETURNING id"
+
+            cursor.execute(sql,
+                           "NULL" if parent is None else parent,
+                           data.source,
+                           self._sql_timestamp(data.arrival),
+                           self._sql_timestamp(data.production_start),
+                           self._sql_timestamp(data.production_end),
+                           "'{:s}'".format(data.type),
+                           "NULL" if data.value is None else "{:f}".format(data.value))
+
+            inserted_id = cursor.fetchone()[0]
+        else:  # No type, so it is a wrapper element that is skipped
+            inserted_id = parent
+
+        for item in data.data:
+            self.insert_data(cursor, inserted_id, item)
+
     def store_data(self, database, data):
         # {
-        #     "source": "0011223344556677",
-        #     "type": "dt_some_data",
-        #     "value": 0.001,
-        #     "production_interval": 5.0,
-        #     "timestamp_production": 1425661616.000,
-        #     "timestamp_arrival": 1425661616.000
+        #   "source": "0011223344556677",
+        #   "type": "dt_some_data",
+        #   "value": 0.001,
+        #   "production_interval": 5.0,
+        #   "timestamp_production": 1425661616.000,
+        #   "timestamp_arrival": 1425661616.000
         # }
 
         # {
-        #     "source": "0011223344556677",
-        #     "type": "dt_some_data",
-        #     "values": [
-        #       {"timestamp_production": 1425661615.000, "production_interval": 1.0, "value": 0.001},
-        #       {"timestamp_production": 1425661616.000, "production_interval": 1.0, "value": 0.002}
-        #      ],
-        #     "timestamp_arrival": 1425661616.000
+        #   "source": "0011223344556677",
+        #   "values": [
+        #     {"type":"dt_some_data", "timestamp_production":1425661615.000, "duration_production":1.0, "value":0.001},
+        #     {"type":"dt_some_data", "timestamp_production":1425661616.000, "duration_production":1.0, "value":0.002}
+        #    ],
+        #   "timestamp_arrival": 1425661616.000
         # }
 
-        elements = process_data(data)
-
-        if len(elements) > 0:
-            try:
-                db = psycopg2.connect(host=self._host, port=self._port, database=database, user=self._user, password=self._pass)
-
+        root = process_data(None, data)
+        if root is not None:
+            if root.source is not None:
                 try:
-                    cursor = db.cursor()
-
-                    s = "INSERT INTO data (guid, arrival, production_start, production_end, type, value) VALUES ('{:s}', {:s}, {:s}, {:s}, {:s}, {:s})"
-
-                    for d in elements:
-
-                        sql = s.format(d.source,
-                                       self._sql_timestamp(d.arrival),
-                                       self._sql_timestamp(d.production_start),
-                                       self._sql_timestamp(d.production_end),
-                                       "NULL" if d.type is None else "'{:s}'".format(d.type),
-                                       "NULL" if d.value is None else "{:f}".format(d.value))
-
-                        cursor.execute(sql)
-
-                    db.commit()
-                    db.close()
-                    return 201
-
+                    db = psycopg2.connect(host=self._host, port=self._port, database=database, user=self._user, password=self._pass)
+                    try:
+                        cursor = db.cursor()
+                        self.insert_data(cursor, None, root)
+                        db.commit()
+                        db.close()
+                        return 201
+                    except Exception:
+                        log.exception("Database fail")
+                        db.rollback()
+                        db.close()
+                        return 503
                 except Exception:
                     log.exception("Database fail")
-                    db.rollback()
-                    db.close()
                     return 503
-
-            except Exception:
-                log.exception("Database fail")
-                return 503
-
+            else:
+                return 406
         else:
             return 406
 
