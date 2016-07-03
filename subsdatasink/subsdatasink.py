@@ -69,19 +69,18 @@ def process_data(parent, data):
             element = DataElement(item["source"], item["type"], item["value"], arrival=item["timestamp_arrival"],
                                   ps=production_start, pe=production_end)
 
-            parent.data.append(element)
-
             if "values" in item:
                 process_data(element, item["values"])
 
-            return element
+            if parent is not None:
+                parent.data.append(element)
+            else:
+                return element
 
-        else:
-            log.warning("no source in data")
     else:
         log.warning("data is None")
 
-    return None
+    return parent
 
 
 class DataSinkPostgres(object):
@@ -95,22 +94,22 @@ class DataSinkPostgres(object):
     @staticmethod
     def _sql_timestamp(ts):
         if ts is None:
-            return "NULL"
+            return None
         else:
             return datetime.utcfromtimestamp(ts).strftime("'%Y-%m-%d %H:%M:%S.%f'")
 
     def insert_data(self, cursor, parent, data):
         if data.type is not None:
-            sql = "INSERT INTO data (parent, guid, arrival, production_start, production_end, type, value) VALUES ({:s}, '{:s}', {:s}, {:s}, {:s}, {:s}, {:s}) RETURNING id"
+            sql = "INSERT INTO data (parent, guid, arrival, production_start, production_end, type, value) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id"
 
             cursor.execute(sql,
-                           "NULL" if parent is None else parent,
-                           data.source,
-                           self._sql_timestamp(data.arrival),
-                           self._sql_timestamp(data.production_start),
-                           self._sql_timestamp(data.production_end),
-                           "'{:s}'".format(data.type),
-                           "NULL" if data.value is None else "{:f}".format(data.value))
+                           (parent,
+                            data.source,
+                            self._sql_timestamp(data.arrival),
+                            self._sql_timestamp(data.production_start),
+                            self._sql_timestamp(data.production_end),
+                            data.type,
+                            None if data.value is None else "{:f}".format(data.value)))
 
             inserted_id = cursor.fetchone()[0]
         else:  # No type, so it is a wrapper element that is skipped
@@ -138,7 +137,7 @@ class DataSinkPostgres(object):
         #   "timestamp_arrival": 1425661616.000
         # }
 
-        root = process_data(None, data)
+        root = process_data(None, [data])
         if root is not None:
             if root.source is not None:
                 try:
