@@ -17,10 +17,10 @@ class TestDataProcessing(TestCase):
                 "duration_production": 5.0,
                 "timestamp_arrival": 1425661680.100}
 
-        elements = process_data(data)
-        self.assertEqual(len(elements), 1)
+        root = process_data(None, [data])
+        self.assertEqual(len(root.data), 0)
 
-        e = elements[0]
+        e = root
         self.assertIsInstance(e, DataElement)
 
         self.assertEqual(data["source"], e.source)
@@ -40,11 +40,11 @@ class TestDataProcessing(TestCase):
                 ],
                 "timestamp_arrival": 1425661680.100}
 
-        elements = process_data(data)
-        self.assertEqual(len(elements), len(data["values"]))
+        root = process_data(None, [data])
+        self.assertEqual(len(root.data), len(data["values"]))
 
         for idx in range(0, len(data["values"])):
-            e = elements[idx]
+            e = root.data[idx]
             self.assertIsInstance(e, DataElement)
 
             self.assertEqual(data["source"], e.source)
@@ -65,12 +65,12 @@ class TestDataProcessing(TestCase):
                 ],
                 "timestamp_arrival": 1425661680.100}
 
-        elements = process_data(data)
-        self.assertEqual(len(elements), len(data["values"]))
+        root = process_data(None, [data])
+        self.assertEqual(len(root.data), len(data["values"]))
 
         for idx in range(0, len(data["values"])):
             print idx
-            e = elements[idx]
+            e = root.data[idx]
             self.assertIsInstance(e, DataElement)
 
             self.assertEqual(data["source"], e.source)
