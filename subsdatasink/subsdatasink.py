@@ -6,8 +6,8 @@ import psycopg2
 from datetime import datetime
 
 from flask import Flask, jsonify, make_response, request
-from flask.ext.restful import Api, Resource, reqparse
-from flask.ext.httpauth import HTTPBasicAuth
+from flask_restful import Api, Resource, reqparse
+from flask_httpauth import HTTPBasicAuth
 
 import logging
 import logging.handlers
@@ -43,7 +43,10 @@ def process_data(parent, data):
                     item["source"] = None
 
             if "type" not in item:
-                item["type"] = None
+                if parent is not None:
+                    item["type"] = parent.type
+                else:
+                    item["type"] = None
 
             if "timestamp_arrival" not in item:
                 if parent is not None:
@@ -51,14 +54,17 @@ def process_data(parent, data):
                 else:
                     item["timestamp_arrival"] = None
 
-            if "value" not in item:
-                item["value"] = None
-
             if "timestamp_production" not in item:
-                item["timestamp_production"] = None
+                if parent is not None:
+                    item["timestamp_production"] = parent.production_start
+                else:
+                    item["timestamp_production"] = None
 
             if "duration_production" not in item:
                 item["duration_production"] = 0
+
+            if "value" not in item:
+                item["value"] = None
 
             production_start = item["timestamp_production"]
             if production_start is not None:
@@ -74,7 +80,7 @@ def process_data(parent, data):
 
             if parent is not None:
                 parent.data.append(element)
-            else:
+            else:  # If no parent, then the first element is returned, others are ignored (there shouldn't be any)
                 return element
 
     else:
@@ -299,6 +305,9 @@ def main():
     if args.debug_server:
         app.run(debug=args.debug, host=args.api_host, port=args.api_port, ssl_context=context)
     else:
+        if args.debug:
+            from tornado.log import enable_pretty_logging
+            enable_pretty_logging()
         tornadoserver(app, args.api_host, args.api_port, context)
 
 
