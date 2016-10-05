@@ -11,7 +11,7 @@ import subsdatasink
 doclines = __doc__.split("\n")
 
 setup(name='subsdatasink',
-      version=subsdatasink.version,
+      version=subsdatasink.__version__,
       description='Datasink for subsserver simple data protocol.',
       long_description='\n'.join(doclines[2:]),
       url='http://github.com/proactivity-lab/subsserver-datasink',

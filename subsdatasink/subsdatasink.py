@@ -17,8 +17,6 @@ log = logging.getLogger(__name__)
 __author__ = "Raido Pahtma"
 __license__ = "MIT"
 
-version = "0.3.0"
-
 
 class DataElement(object):
 
