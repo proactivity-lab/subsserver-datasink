@@ -12,4 +12,5 @@ When installed with pip, an executable script is also installed.
 Configuration file for the datasink can be specified with `-c`.
 
 Database must be created manually and must have INSERT permissions for
-the user used by datasink.
+the user used by datasink. Database structure is described in file
+"create-db.sql".
