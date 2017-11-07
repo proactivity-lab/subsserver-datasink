@@ -35,6 +35,6 @@ WITH (
   OIDS=FALSE
 );
 
-CREATE INDEX IF NOT EXISTS data_production_start_idx ON data production_start;
-CREATE INDEX IF NOT EXISTS data_production_end_idx ON data production_end;
+CREATE INDEX IF NOT EXISTS data_production_start_idx ON data (production_start);
+CREATE INDEX IF NOT EXISTS data_production_end_idx ON data (production_end);
 
